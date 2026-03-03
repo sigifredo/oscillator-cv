@@ -131,8 +131,11 @@ def main():
     detector = vision.HandLandmarker.create_from_options(options)
     cap = cv2.VideoCapture(1)
 
-    osc = utils.Oscillator(440, 1)
+    osc = utils.Oscillator(440, 1, 'sawtooth')
+    lfo = utils.Oscillator(2, 1)
+
     osc.play()
+    lfo.play()
 
     if not cap.isOpened():
         log.error('No se pudo acceder a la cámara.')
@@ -159,7 +162,8 @@ def main():
             cv2.imshow('img', frame)
 
         if index_pos:
-            osc.set_frequency(utils.map_range(index_pos[1], 0, 720, 100, 10000))
+            # osc.set_frequency(utils.map_range(index_pos[1], 0, 720, 100, 10000))
+            lfo.set_frequency(utils.map_range(index_pos[1], 0, 720, 0, 10))
 
         if check_exit():
             break

@@ -15,23 +15,51 @@ class Oscillator:
         self,
         frequency: float = 440.0,
         amplitude: float = 0.4,
+        type: str = 'sine',
     ):
         self.frequency = frequency
         self.amplitude = amplitude
+        self.type = type
         self._phase: float = 0.0
         self._stream = None
 
-    def set_frequency(self, f: float) -> None:
-        '''Actualiza la frecuencia en Hz. Seguro llamarlo con el stream activo.'''
-        self.frequency = float(f)
+    def set_frequency(self, f) -> None:
+        '''Acepta float u Oscillator.'''
+        self.frequency = f
 
-    def set_amplitude(self, a: float) -> None:
-        '''Actualiza la amplitud (0.0 a 1.0).'''
-        self.amplitude = float(np.clip(a, 0.0, 1.0))
+    def set_amplitude(self, a) -> None:
+        '''Acepta float u Oscillator.'''
+        self.amplitude = a
+
+    def render(self, frames: int) -> np.ndarray:
+        '''
+        Genera `frames` muestras sin stream de audio.
+        Avanza la fase interna para mantener continuidad entre llamadas.
+        Retorna array float32 en [-1, 1] (sin aplicar amplitud propia).
+        '''
+        freq = self._resolve(self.frequency, frames)
+        amp = self._resolve(self.amplitude, frames)
+
+        # Fase acumulada sample a sample para soportar freq variable (FM)
+        if np.isscalar(freq):
+            phase_inc = 2 * np.pi * freq / SAMPLE_RATE
+            phase_vec = self._phase + phase_inc * np.arange(frames)
+        else:
+            phase_inc = 2 * np.pi * freq / SAMPLE_RATE
+            phase_vec = self._phase + np.cumsum(phase_inc)
+
+        if self.type == 'sawtooth':
+            wave = amp * (phase_vec % (2 * np.pi) / np.pi - 1.0)
+        else:
+            t = np.arange(frames) / SAMPLE_RATE
+            wave = amp * np.sin(2 * np.pi * freq * t + self._phase)  # Sinosoidal
+
+        # Avanzar fase
+        self._phase = phase_vec[-1] % (2 * np.pi)
+
+        return wave.astype(np.float32)
 
     def play(self) -> None:
-        '''Inicia el stream de audio en segundo plano. No bloqueante.'''
-
         if self._stream is not None and self._stream.active:
             return
         self._stream = sd.OutputStream(
@@ -41,12 +69,9 @@ class Oscillator:
             dtype='float32',
             callback=self._callback,
         )
-
         self._stream.start()
 
     def stop(self) -> None:
-        '''Detiene y cierra el stream.'''
-
         if self._stream is not None:
             self._stream.stop()
             self._stream.close()
@@ -56,18 +81,15 @@ class Oscillator:
     def is_playing(self) -> bool:
         return self._stream is not None and self._stream.active
 
+    def _resolve(self, param, frames: int):
+        '''
+        Si param es Oscillator, llama render() para obtener un array.
+        Si es escalar, lo devuelve tal cual.
+        '''
+        if isinstance(param, Oscillator):
+            return param.render(frames)
+        return float(param)
+
     def _callback(self, outdata, frames, time, status) -> None:
-        freq = self.frequency
-        amp = self.amplitude
-        t = np.arange(frames) / SAMPLE_RATE
-
-        # wave = amp * np.sin(2 * np.pi * freq * t + self._phase) # Sinosoidal
-        phase_vec = (self._phase + 2 * np.pi * freq * t) % (2 * np.pi)
-
-        # Diente de sierra: mapeo lineal de [0, 2π] → [-1, 1]
-        wave = amp * (phase_vec / np.pi - 1.0)
-
-        # Acumular fase para evitar discontinuidades entre bloques
-        self._phase = (self._phase + 2 * np.pi * freq * frames / SAMPLE_RATE) % (2 * np.pi)
-
-        outdata[:, 0] = wave.astype(np.float32)
+        wave = self.render(frames)
+        outdata[:, 0] = wave
