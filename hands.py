@@ -62,13 +62,18 @@ class HandsDrawer:
         return annotated_image
 
 
+def cv_image_to_mp_image(frame: cv2.Mat) -> mp.Image:
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    return mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+
+
 def main():
     hands_drawer: HandsDrawer = HandsDrawer()
 
     base_options = python.BaseOptions(model_asset_path='assets/hand_landmarker.task')
     options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=2)
     detector = vision.HandLandmarker.create_from_options(options)
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(1)
 
     if not cap.isOpened():
         log.error('No se pudo acceder a la cámara.')
@@ -84,12 +89,12 @@ def main():
             log.error('No se pudo leer el frame.')
             break
 
-        detection_result = detector.detect(frame)
+        image: mp.Image = cv_image_to_mp_image(frame)
+        detection_result = detector.detect(image)
         annotated_image = hands_drawer.draw_landmarks_on_image(image.numpy_view(), detection_result)
 
         cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
 
-        # Salir con la tecla 'q'
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
