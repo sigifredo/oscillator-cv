@@ -1,3 +1,4 @@
+import enum
 import numpy as np
 import sounddevice as sd
 
@@ -10,12 +11,17 @@ def map_range(value: float, in_min: float, in_max: float, out_min: float, out_ma
     return max(out_min, min(out_max, result)) if clamp else result
 
 
+class Waveform(enum.Enum):
+    SINE = 'sine'
+    SAWTOOTH = 'sawtooth'
+
+
 class Oscillator:
     def __init__(
         self,
         frequency: float = 440.0,
         amplitude: float = 0.4,
-        type: str = 'sine',
+        type: Waveform = Waveform.SINE,
     ):
         self.frequency = frequency
         self.amplitude = amplitude
@@ -48,7 +54,7 @@ class Oscillator:
             phase_inc = 2 * np.pi * freq / SAMPLE_RATE
             phase_vec = self._phase + np.cumsum(phase_inc)
 
-        if self.type == 'sawtooth':
+        if self.type == Waveform.SAWTOOTH:
             wave = amp * (phase_vec % (2 * np.pi) / np.pi - 1.0)
         else:
             t = np.arange(frames) / SAMPLE_RATE
