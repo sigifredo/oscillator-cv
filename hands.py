@@ -6,6 +6,7 @@ from mediapipe.tasks.python import vision
 import cv2
 import mediapipe as mp
 import numpy as np
+import praxis.log as log
 
 
 FONT_SIZE = 1
@@ -14,7 +15,7 @@ HANDEDNESS_TEXT_COLOR = (88, 205, 54)
 MARGIN = 10
 
 
-class HandsHandler:
+class HandsDrawer:
     def __init__(self):
         self.mp_hands = mp.tasks.vision.HandLandmarksConnections
         self.mp_drawing = mp.tasks.vision.drawing_utils
@@ -62,23 +63,41 @@ class HandsHandler:
 
 
 def main():
-    hands_handler: HandsHandler = HandsHandler()
+    hands_drawer: HandsDrawer = HandsDrawer()
 
     base_options = python.BaseOptions(model_asset_path='assets/hand_landmarker.task')
     options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=2)
     detector = vision.HandLandmarker.create_from_options(options)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-    # STEP 3: Load the input image.
-    image = mp.Image.create_from_file('image.jpg')
+    if not cap.isOpened():
+        log.error('No se pudo acceder a la cámara.')
+        return 1
 
-    # STEP 4: Detect hand landmarks from the input image.
-    detection_result = detector.detect(image)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-    # STEP 5: Process the classification result. In this case, visualize it.
-    annotated_image = hands_handler.draw_landmarks_on_image(image.numpy_view(), detection_result)
-    cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-    cv2.waitKey(0)
+    while True:
+        ret, frame = cap.read()
+
+        if not ret:
+            log.error('No se pudo leer el frame.')
+            break
+
+        detection_result = detector.detect(frame)
+        annotated_image = hands_drawer.draw_landmarks_on_image(image.numpy_view(), detection_result)
+
+        cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+
+        # Salir con la tecla 'q'
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Liberar recursos
+    cap.release()
     cv2.destroyAllWindows()
+
+    return 0
 
 
 if __name__ == '__main__':
