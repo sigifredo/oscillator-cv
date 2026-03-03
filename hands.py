@@ -62,6 +62,11 @@ class HandsDrawer:
         return annotated_image
 
 
+def check_exit() -> bool:
+    key = cv2.waitKey(1)
+    return key == ord('q') or key == 27
+
+
 def cv_image_to_mp_image(frame: cv2.Mat) -> mp.Image:
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
@@ -95,7 +100,7 @@ def main():
 
         cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if check_exit():
             break
 
     # Liberar recursos
