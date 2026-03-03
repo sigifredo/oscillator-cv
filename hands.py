@@ -7,12 +7,40 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import praxis.log as log
-
+import utils
 
 FONT_SIZE = 1
 FONT_THICKNESS = 1
 HANDEDNESS_TEXT_COLOR = (88, 205, 54)
 MARGIN = 10
+
+
+def get_right_index_tip(detection_result, image_width: int, image_height: int) -> tuple[int, int] | None:
+    '''
+    Retorna la posición en píxeles de la punta del índice derecho.
+
+    Args:
+        detection_result: HandLandmarkerResult de MediaPipe
+        image_width:  ancho del frame en píxeles
+        image_height: alto del frame en píxeles
+
+    Returns:
+        (x, y) en píxeles, o None si no se detecta mano derecha
+    '''
+
+    for i, handedness_list in enumerate(detection_result.handedness):
+        # Cada elemento es una lista con un Category; tomamos el de mayor score
+        hand_label = handedness_list[0].category_name  # 'Right' o 'Left'
+
+        if hand_label == 'Left':
+            landmark = detection_result.hand_landmarks[i][8]  # INDEX_FINGER_TIP
+
+            x = int(landmark.x * image_width)
+            y = int(landmark.y * image_height)
+
+            return (x, y)
+
+    return None
 
 
 class HandsDrawer:
@@ -61,6 +89,29 @@ class HandsDrawer:
 
         return annotated_image
 
+    def draw_index(self, rgb_image: mp.Image, detection_result):
+        tip_pos = get_right_index_tip(detection_result, 1280, 720)
+
+        if tip_pos:
+            annotated_image = np.copy(rgb_image)
+
+            cv2.circle(annotated_image, center=tip_pos, radius=10, color=(0, 255, 0), thickness=-1)
+
+            cv2.putText(
+                annotated_image,
+                "index",
+                (tip_pos[0] + 12, tip_pos[1]),
+                cv2.FONT_HERSHEY_DUPLEX,
+                FONT_SIZE,
+                HANDEDNESS_TEXT_COLOR,
+                FONT_THICKNESS,
+                cv2.LINE_AA,
+            )
+
+            return annotated_image, tip_pos
+
+        return rgb_image, None
+
 
 def check_exit() -> bool:
     key = cv2.waitKey(1)
@@ -96,9 +147,13 @@ def main():
 
         image: mp.Image = cv_image_to_mp_image(frame)
         detection_result = detector.detect(image)
-        annotated_image = hands_drawer.draw_landmarks_on_image(image.numpy_view(), detection_result)
+        annotated_image, index_pos = hands_drawer.draw_index(image.numpy_view(), detection_result)
+        # annotated_image = hands_drawer.draw_landmarks_on_image(image.numpy_view(), detection_result)
 
-        cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+        if annotated_image is not None:
+            cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
+        else:
+            cv2.imshow('img', frame)
 
         if check_exit():
             break
