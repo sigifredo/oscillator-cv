@@ -131,6 +131,9 @@ def main():
     detector = vision.HandLandmarker.create_from_options(options)
     cap = cv2.VideoCapture(1)
 
+    osc = utils.Oscillator(440, 1)
+    osc.play()
+
     if not cap.isOpened():
         log.error('No se pudo acceder a la cámara.')
         return 1
@@ -155,10 +158,14 @@ def main():
         else:
             cv2.imshow('img', frame)
 
+        if index_pos:
+            osc.set_frequency(utils.map_range(index_pos[1], 0, 720, 100, 10000))
+
         if check_exit():
             break
 
     # Liberar recursos
+    osc.stop()
     cap.release()
     cv2.destroyAllWindows()
 
