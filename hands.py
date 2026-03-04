@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from dataclasses import dataclass
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
@@ -18,17 +19,10 @@ MARGIN = 10
 CANVAS_WIDTH = 1280
 CANVAS_HEIGHT = 720
 
-OSC_MIN_FREQ = 200
-OSC_MAX_FREQ = 2000
+OSC_MIN_FREQ = 100
+OSC_MAX_FREQ = 1500
 LFO_MIN_FREQ = 1
-LFO_MAX_FREQ = 7
-
-
-import enum
-
-
-import enum
-from dataclasses import dataclass
+LFO_MAX_FREQ = 3
 
 
 class HandType(enum.Enum):
@@ -115,7 +109,7 @@ class HandsDrawer:
             # Draw handedness (left or right hand) on the image.
             cv2.putText(
                 annotated_image,
-                f'{handedness[0].category_name}',
+                'lfo' if handedness[0].category_name.lower() == HandType.LEFT.value else 'osc',
                 (text_x, text_y),
                 cv2.FONT_HERSHEY_DUPLEX,
                 FONT_SIZE,
@@ -124,7 +118,7 @@ class HandsDrawer:
                 cv2.LINE_AA,
             )
 
-        return annotated_image
+        return cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
 
     def draw_index(self, rgb_image: mp.Image, positions):
         annotated_image = np.copy(rgb_image)
@@ -176,6 +170,8 @@ def main():
     osc = utils.Oscillator(440, 1, utils.Waveform.SAWTOOTH)
     lfo = utils.Oscillator(2, 1, utils.Waveform.SINE)
 
+    osc.set_amplitude(lfo)
+
     osc.play()
     lfo.play()
 
@@ -188,6 +184,7 @@ def main():
 
     while True:
         ret, frame = cap.read()
+        frame = cv2.flip(frame, 1)
 
         if not ret:
             log.error('No se pudo leer el frame.')
@@ -200,9 +197,9 @@ def main():
         annotated_image = hands_drawer.draw_landmarks_on_image(image.numpy_view(), detection_result)
 
         if annotated_image is not None:
-            cv2.imshow('img', cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR))
-        else:
-            cv2.imshow('img', frame)
+            frame = annotated_image
+
+        cv2.imshow('img', frame)
 
         for hand_type, point in index_pos.items():
             if point is None:
