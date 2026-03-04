@@ -19,8 +19,8 @@ MARGIN = 10
 CANVAS_WIDTH = 1280
 CANVAS_HEIGHT = 720
 
-OSC_MIN_FREQ = 100
-OSC_MAX_FREQ = 1500
+OSC_MIN_FREQ = 82
+OSC_MAX_FREQ = 400
 LFO_MIN_FREQ = 1
 LFO_MAX_FREQ = 3
 
@@ -167,12 +167,17 @@ def main():
     detector = vision.HandLandmarker.create_from_options(options)
     cap = cv2.VideoCapture(1)
 
-    osc = utils.Oscillator(440, 1, utils.Waveform.SAWTOOTH)
+    osc1 = utils.Oscillator(440, 1, utils.Waveform.SQUARE)
+    osc2 = utils.Oscillator(440 * 6 / 5, 1, utils.Waveform.SAWTOOTH)
+    osc3 = utils.Oscillator(440 * 3 / 2, 1, utils.Waveform.SAWTOOTH)
     lfo = utils.Oscillator(2, 1, utils.Waveform.SINE)
 
-    osc.set_amplitude(lfo)
+    osc1.set_amplitude(lfo)
+    osc2.set_amplitude(lfo)
+    osc3.set_amplitude(lfo)
 
-    osc.play()
+    osc1.play()
+    osc2.play()
     lfo.play()
 
     if not cap.isOpened():
@@ -208,13 +213,17 @@ def main():
             if hand_type == HandType.LEFT:
                 lfo.set_frequency(utils.map_range(point.y, 0, CANVAS_HEIGHT, LFO_MIN_FREQ, LFO_MAX_FREQ))
             elif hand_type == HandType.RIGHT:
-                osc.set_frequency(utils.map_range(point.y, 0, CANVAS_HEIGHT, OSC_MIN_FREQ, OSC_MAX_FREQ))
+                osc1.set_frequency(utils.map_range(point.y, 0, CANVAS_HEIGHT, OSC_MIN_FREQ, OSC_MAX_FREQ))
+                osc2.set_frequency(osc1.frequency * 6 / 5)
+                osc3.set_frequency(osc1.frequency * 3 / 2)
 
         if check_exit():
             break
 
     # Liberar recursos
-    osc.stop()
+    osc1.stop()
+    osc2.stop()
+    osc3.stop()
     cap.release()
     cv2.destroyAllWindows()
 

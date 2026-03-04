@@ -12,8 +12,9 @@ def map_range(value: float, in_min: float, in_max: float, out_min: float, out_ma
 
 
 class Waveform(enum.Enum):
-    SINE = 'sine'
     SAWTOOTH = 'sawtooth'
+    SQUARE = 'square'
+    SINE = 'sine'
 
 
 class Oscillator:
@@ -56,9 +57,10 @@ class Oscillator:
 
         if self.type == Waveform.SAWTOOTH:
             wave = amp * (phase_vec % (2 * np.pi) / np.pi - 1.0)
+        elif self.type == Waveform.SQUARE:
+            wave = amp * np.sign(np.sin(phase_vec))
         else:
-            t = np.arange(frames) / SAMPLE_RATE
-            wave = amp * np.sin(2 * np.pi * freq * t + self._phase)  # Sinosoidal
+            wave = amp * np.sin(phase_vec)
 
         # Avanzar fase
         self._phase = phase_vec[-1] % (2 * np.pi)
